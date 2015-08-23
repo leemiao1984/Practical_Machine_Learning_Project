@@ -1,0 +1,114 @@
+## **Practical Machine Learning Project** 
+#### *Miao*
+#### *August 20, 2015*
+
+
+### **1 Assignment**
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement ??? a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+### **2 Preparation of Working Environment**
+
+```{r, eval=FALSE}
+setwd("D:/R document/coursera/predmachlearn/project")
+library(randomForest)
+library(Hmisc)
+library(caret)
+library(doParallel)
+library(foreach)
+options(warn=-1)
+set.seed(9999)
+```
+
+### **3 Data Processing**
+The values containing "#DIV/0!" are replaced with an NA value.
+```{r, results='hide'}
+DataProcess <- function(file, url) {
+  if (! file.exists(file)) {
+    paste("downloading", url, "into", file, "...")
+    download.file(url, file, method="wget")
+  }
+  read.csv(file, na.strings=c("#DIV/0!"))
+}
+training <- DataProcess("pml-training.csv",
+                    "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+testing <- DataProcess("pml-testing.csv",
+                    "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+head(training)
+head(testing)
+```
+
+### **4 Preparation of Dataset for Analysis**
+After checking the dataset, there are some characters for these data. First, the first 7 columns contains user names, time stamps, and windows. They should be removed. Then, there are many columns only containing "NA". They have little contribution for the modeling. So the dataset need to be cleaned up for modeling purpose.
+
+```{r, results='hide'}
+# removal of first 7 columns, and cast other columns into numeric
+for(i in c(8:ncol(training)-1)) {training[,i] = as.numeric(as.character(training[,i]))}
+for(i in c(8:ncol(testing)-1)) {testing[,i] = as.numeric(as.character(testing[,i]))}
+```
+
+```{r,results='hide'}
+# Dataset for modeling
+ExtractData <- colnames(training[colSums(is.na(training)) == 0])[-(1:7)]
+ModelData<- training[ExtractData]
+ExtractData
+```
+
+### **5 Create Data Partitions for Cross-Validation**
+
+```{r}
+library(caret)
+partition <- createDataPartition(y=ModelData$classe, p=0.75, list=FALSE )
+training <- ModelData[partition,]
+testing <- ModelData[-partition,]
+```
+
+### **6 Random Forest Model**
+
+Random Forest Model iss used to fit the data. Also parallel processing with random forests is used to speed up the process. 
+
+```{r}
+library(doParallel)
+registerDoParallel()
+x <- training[-ncol(training)]
+y <- training$classe
+
+rf_model <- foreach(ntree=rep(150, 6), .combine=randomForest::combine, .packages='randomForest') %dopar% {
+randomForest(x, y, ntree=ntree) 
+}
+```
+
+### **7 Create Error Reports**
+```{r}
+predict1 <- predict(rf_model, newdata=training)
+confusionMatrix(predict1,training$classe)
+
+predict2 <- predict(rf_model, newdata=testing)
+confusionMatrix(predict2,testing$classe)
+```
+
+### **8 Data Submission**
+
+```{r, results='hide'}
+ExtractData <- colnames(training)
+newdata<- testing
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+x <- testing
+x <- x[ExtractData[ExtractData!='classe']]
+answers <- predict(rf_model, newdata=x)
+
+answers
+
+pml_write_files(answers)
+```
+
+### **9 Conclusion**
+
+From the confusion matrix, we can know the model fit the dataset perfectly. Other models were also tested, but cannot acheive the comparable accuracy as this one. The submission results are all right according to the submission part of this project.
