@@ -1,3 +1,6 @@
+---
+output: word_document
+---
 ## **Practical Machine Learning Project** 
 #### *Miao*
 #### *August 20, 2015*
@@ -111,4 +114,4 @@ pml_write_files(answers)
 
 ### **9 Conclusion**
 
-From the confusion matrix, we can know the model fit the dataset perfectly. Other models were also tested, but cannot acheive the comparable accuracy as this one. The submission results are all right according to the submission part of this project.
+From the confusion matrix, we can know the model fit the dataset perfectly. The accuracy of the model fitting test data is around 99%. Other models were also tested, but cannot acheive the comparable accuracy as this one. The submission results are all right according to the submission part of this project.
